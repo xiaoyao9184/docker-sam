@@ -1,14 +1,14 @@
 FROM scratch as test
 
+ARG MODEL_CHECKPOINT=sam_vit_h_4b8939
+
 FROM python:3.10 as download
 
 RUN pip install --upgrade pip
 
 ENV TZ=Europe/Rome
 
-RUN wget -q -O /usr/src/sam_vit_h_4b8939.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth &&\ 
-    wget -q -O /usr/src/sam_vit_l_0b3195.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth &&\
-    wget -q -O /usr/src/sam_vit_b_01ec64.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
+RUN wget -q -O /usr/src/${MODEL_CHECKPOINT}.pth https://dl.fbaipublicfiles.com/segment_anything/${MODEL_CHECKPOINT}.pth
 
 FROM python:3.10 as bundle
 

@@ -2,6 +2,8 @@ name: Build and Publish
 
 on:
   push:
+    branches:
+      - 'main'
     tags:
       - '*'
 
@@ -33,17 +35,53 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build image and push to Docker Hub
+      - name: Build ViT-H image
         uses: docker/build-push-action@v4
         with:
           # relative path to the place where source code with Dockerfile is located
           context: .
           # Note: tags has to be all lower-case
           tags: |
-            matteopic/segment-anything:latest 
-            matteopic/segment-anything:${{ env.RELEASE_VERSION }}
+            matteopic/segment-anything:latest
+            matteopic/segment-anything:sam_vit_h
+            matteopic/segment-anything:sam_vit_h_4b8939
+            matteopic/segment-anything:${{ env.RELEASE_VERSION }}-sam_vit_h_4b8939
           # build on feature branches, push only on main branch
           push: true
+          build-args: |
+            MODEL_CHECKPOINT=sam_vit_h_4b8939
+
+      - name: Build ViT-L image
+        uses: docker/build-push-action@v4
+        with:
+          # relative path to the place where source code with Dockerfile is located
+          context: .
+          # Note: tags has to be all lower-case
+          tags: |
+            matteopic/segment-anything:latest
+            matteopic/segment-anything:sam_vit_l
+            matteopic/segment-anything:sam_vit_l_0b3195
+            matteopic/segment-anything:${{ env.RELEASE_VERSION }}-sam_vit_l_0b3195
+          # build on feature branches, push only on main branch
+          push: true
+          build-args: |
+            MODEL_CHECKPOINT=sam_vit_l_0b3195
+
+      - name: Build ViT-B image
+        uses: docker/build-push-action@v4
+        with:
+          # relative path to the place where source code with Dockerfile is located
+          context: .
+          # Note: tags has to be all lower-case
+          tags: |
+            matteopic/segment-anything:latest
+            matteopic/segment-anything:sam_vit_b
+            matteopic/segment-anything:sam_vit_b_01ec64
+            matteopic/segment-anything:${{ env.RELEASE_VERSION }}-sam_vit_b_01ec64
+          # build on feature branches, push only on main branch
+          push: true
+          build-args: |
+            MODEL_CHECKPOINT=sam_vit_b_01ec64
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
