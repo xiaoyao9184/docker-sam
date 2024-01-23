@@ -14,74 +14,120 @@ jobs:
     # run only when code is compiling and tests are passing
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        MODEL:
+          - 'sam_vit_h_4b8939'
+          - 'sam_vit_l_0b3195'
+          - 'sam_vit_b_01ec64'
+        DEVICE:
+          - 'cpu'
+          # - 'cuda'
+        include:
+          - MODEL: sam_vit_h_4b8939
+            MODEL_TYPE: vit_h
+          - MODEL: sam_vit_l_0b3195
+            MODEL_TYPE: vit_l
+          - MODEL: sam_vit_b_01ec64
+            MODEL_TYPE: vit_b
+          - BASE_IMAGE: python:3.10
+            DEVICE: cpu
+            TAG_SUFFIX:
+            OPENCV_INSTALL: opencv-python-headless pycocotools matplotlib onnxruntime onnx
+            PYTORCH_INSTALL: torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cpu
+            platform: linux/amd64,linux/arm64
+
+          # PyTorch ARM binaries do not support CUDA
+          #  see https://discuss.pytorch.org/t/unable-to-access-cuda-using-torch-on-aarch64-architecture/185741
+          # - BASE_IMAGE: python:3.10
+          #   DEVICE: cuda
+          #   TAG_SUFFIX:
+          #   OPENCV_INSTALL: opencv-python-headless pycocotools matplotlib onnxruntime onnx
+          #   PYTORCH_INSTALL: torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
+          #   platform: linux/amd64
+
+          # PyTorch Docker container do not support arm64
+          # - BASE_IMAGE: pytorch/pytorch:2.1.2-cuda12.1-cudnn8-runtime
+          #   DEVICE: cuda
+          #   TAG_SUFFIX: pytorch
+          #   OPENCV_INSTALL: pip
+          #   PYTORCH_INSTALL: pip
+          #   platform: linux/amd64
+
+          # NGC Docker Image is too big for github action
+          # - BASE_IMAGE: nvcr.io/nvidia/pytorch:23.12-py3
+          #   DEVICE: cuda
+          #   # TAG_SUFFIX: ngc
+          #   OPENCV_INSTALL: pip
+          #   PYTORCH_INSTALL: pip
+          #   platform: linux/amd64,linux/arm64
+  
+
     # steps to perform in job
     steps:
+      # Fix github action 'No space left on device'
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: true
 
-      - name: Set env
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      # setup Docker buld action
       - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build ViT-H image
-        uses: docker/build-push-action@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          # relative path to the place where source code with Dockerfile is located
-          context: .
-          # Note: tags has to be all lower-case
-          tags: |
-            matteopic/segment-anything:latest
-            matteopic/segment-anything:sam_vit_h
-            matteopic/segment-anything:sam_vit_h_4b8939
-            matteopic/segment-anything:${{ env.RELEASE_VERSION }}-sam_vit_h_4b8939
-          # build on feature branches, push only on main branch
-          push: true
-          build-args: |
-            MODEL_CHECKPOINT=sam_vit_h_4b8939
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build ViT-L image
-        uses: docker/build-push-action@v4
+      - name: Set env git short head
+        working-directory: ./segment-anything
+        run: echo "COMMIT_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          # relative path to the place where source code with Dockerfile is located
-          context: .
-          # Note: tags has to be all lower-case
+          images: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/segment-anything
+            ghcr.io/${{ github.repository_owner }}/segment-anything
           tags: |
-            matteopic/segment-anything:latest
-            matteopic/segment-anything:sam_vit_l
-            matteopic/segment-anything:sam_vit_l_0b3195
-            matteopic/segment-anything:${{ env.RELEASE_VERSION }}-sam_vit_l_0b3195
-          # build on feature branches, push only on main branch
-          push: true
-          build-args: |
-            MODEL_CHECKPOINT=sam_vit_l_0b3195
+            type=raw,value=${{ env.COMMIT_SHORT }}
+          flavor: |
+            latest=false
+            suffix=-${{ matrix.MODEL }}-${{ matrix.DEVICE }}${{ matrix.TAG_SUFFIX }}
 
-      - name: Build ViT-B image
-        uses: docker/build-push-action@v4
+      - name: Build and Push
+        id: build
+        uses: docker/build-push-action@v5
         with:
-          # relative path to the place where source code with Dockerfile is located
           context: .
-          # Note: tags has to be all lower-case
-          tags: |
-            matteopic/segment-anything:latest
-            matteopic/segment-anything:sam_vit_b
-            matteopic/segment-anything:sam_vit_b_01ec64
-            matteopic/segment-anything:${{ env.RELEASE_VERSION }}-sam_vit_b_01ec64
-          # build on feature branches, push only on main branch
-          push: true
           build-args: |
-            MODEL_CHECKPOINT=sam_vit_b_01ec64
+            BASE_IMAGE=${{ matrix.BASE_IMAGE }}
+            MODEL_CHECKPOINT=${{ matrix.MODEL }}
+            MODEL_TYPE=${{ matrix.MODEL_TYPE }}
+            DEVICE_TYPE=${{ matrix.DEVICE }}
+            OPENCV_INSTALL=${{ matrix.OPENCV_INSTALL }}
+            PYTORCH_INSTALL=${{ matrix.PYTORCH_INSTALL }}
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Image digest
-        run: echo ${{ steps.docker_build.outputs.digest }}
+      - name: Print image digest
+        run: echo ${{ steps.build.outputs.digest }}
