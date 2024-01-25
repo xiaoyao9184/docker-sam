@@ -1,0 +1,111 @@
+name: sam cuda docker
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - docker/segment-anything/cuda/Dockerfile
+      - .github/workflows/sam-cuda-docker.yml
+  workflow_dispatch:
+
+jobs:
+  build-and-push-docker-image:
+    name: Build Docker image and push to repositories
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        MODEL:
+          - 'sam_vit_h_4b8939'
+          - 'sam_vit_l_0b3195'
+          - 'sam_vit_b_01ec64'
+        include:
+          - MODEL: sam_vit_h_4b8939
+            MODEL_TYPE: vit_h
+          - MODEL: sam_vit_l_0b3195
+            MODEL_TYPE: vit_l
+          - MODEL: sam_vit_b_01ec64
+            MODEL_TYPE: vit_b
+          - BASE_IMAGE: nvidia/cuda:12.1.0-base-ubuntu20.04
+            DEVICE: cuda
+            TAG_SUFFIX:
+            OPENCV_INSTALL: opencv-python-headless pycocotools matplotlib onnxruntime onnx
+            PYTORCH_INSTALL: torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
+            platform: linux/amd64,linux/arm64
+
+          # - BASE_IMAGE: 12.1.0-cudnn8-runtime-ubuntu20.04
+          #   DEVICE: cuda
+          #   TAG_SUFFIX:
+          #   OPENCV_INSTALL: opencv-python-headless pycocotools matplotlib onnxruntime onnx
+          #   PYTORCH_INSTALL: torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
+          #   platform: linux/amd64,linux/arm64
+
+    steps:
+      # Fix github action 'No space left on device'
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set env git short head
+        working-directory: ./segment-anything
+        run: echo "COMMIT_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/segment-anything
+            ghcr.io/${{ github.repository_owner }}/segment-anything
+          tags: |
+            type=raw,value=${{ env.COMMIT_SHORT }}
+          flavor: |
+            latest=false
+            suffix=-${{ matrix.MODEL }}-${{ matrix.DEVICE }}${{ matrix.TAG_SUFFIX }}
+
+      - name: Build and Push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/segment-anything/cuda/Dockerfile
+          build-args: |
+            BASE_IMAGE=${{ matrix.BASE_IMAGE }}
+            MODEL_CHECKPOINT=${{ matrix.MODEL }}
+            MODEL_TYPE=${{ matrix.MODEL_TYPE }}
+            DEVICE_TYPE=${{ matrix.DEVICE }}
+            OPENCV_INSTALL=${{ matrix.OPENCV_INSTALL }}
+            PYTORCH_INSTALL=${{ matrix.PYTORCH_INSTALL }}
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Print image digest
+        run: echo ${{ steps.build.outputs.digest }}
