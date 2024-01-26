@@ -2,8 +2,12 @@ ARG BASE_IMAGE=nvcr.io/nvidia/pytorch:23.12-py3
 ARG MODEL_CHECKPOINT
 ARG MODEL_TYPE
 ARG DEVICE_TYPE=cuda
-# replace opencv-python with opencv-python-headless
+# python
+# already
+# opencv: replace opencv-python with opencv-python-headless
 ARG OPENCV_INSTALL=opencv-python-headless pycocotools matplotlib onnxruntime onnx
+# pytorch
+# already
 
 
 # Stage 1: Download model
@@ -17,7 +21,9 @@ FROM ${BASE_IMAGE}
 ARG MODEL_CHECKPOINT
 ARG MODEL_TYPE
 ARG DEVICE_TYPE
+
 ARG OPENCV_INSTALL
+
 
 COPY segment-anything /usr/src/segment-anything
 COPY --from=download /usr/src/${MODEL_CHECKPOINT}.pth /usr/src/segment-anything/

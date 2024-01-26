@@ -1,4 +1,4 @@
-name: sam cuda docker
+name: sam ngc docker
 
 on:
   push:
@@ -81,7 +81,7 @@ jobs:
             type=raw,value=${{ env.COMMIT_SHORT }}
           flavor: |
             latest=false
-            suffix=-${{ matrix.DEVICE }}${{ matrix.TAG_SUFFIX }}
+            suffix=-base-${{ matrix.DEVICE }}${{ matrix.TAG_SUFFIX }}
 
       - name: Build and Push
         id: build
