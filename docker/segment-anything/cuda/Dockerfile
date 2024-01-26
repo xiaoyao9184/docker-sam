@@ -2,10 +2,11 @@ ARG BASE_IMAGE=nvidia/cuda:12.1.0-base-ubuntu20.04
 ARG MODEL_CHECKPOINT
 ARG MODEL_TYPE
 ARG DEVICE_TYPE=cuda
+# python
 ARG PY_VERSION=3.10
-# replace opencv-python with opencv-python-headless
+# opencv: replace opencv-python with opencv-python-headless
 ARG OPENCV_INSTALL=opencv-python-headless pycocotools matplotlib onnxruntime onnx
-# default use cuda
+# pytorch: default use cuda
 ARG PYTORCH_INSTALL=torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
 
 
