@@ -1,17 +1,17 @@
-name: Build and Publish
+name: sam cpu docker
 
 on:
   push:
     branches:
       - 'main'
-    tags:
-      - '*'
+    paths:
+      - docker/segment-anything/cpu/Dockerfile
+      - .github/workflows/sam-cpu-docker.yml
+  workflow_dispatch:
 
 jobs:
-  # define job to build and publish docker image
   build-and-push-docker-image:
     name: Build Docker image and push to repositories
-    # run only when code is compiling and tests are passing
     runs-on: ubuntu-latest
 
     strategy:
@@ -20,9 +20,6 @@ jobs:
           - 'sam_vit_h_4b8939'
           - 'sam_vit_l_0b3195'
           - 'sam_vit_b_01ec64'
-        DEVICE:
-          - 'cpu'
-          # - 'cuda'
         include:
           - MODEL: sam_vit_h_4b8939
             MODEL_TYPE: vit_h
@@ -30,6 +27,7 @@ jobs:
             MODEL_TYPE: vit_l
           - MODEL: sam_vit_b_01ec64
             MODEL_TYPE: vit_b
+
           - BASE_IMAGE: python:3.10
             DEVICE: cpu
             TAG_SUFFIX:
@@ -37,33 +35,6 @@ jobs:
             PYTORCH_INSTALL: torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cpu
             platform: linux/amd64,linux/arm64
 
-          # PyTorch ARM binaries do not support CUDA
-          #  see https://discuss.pytorch.org/t/unable-to-access-cuda-using-torch-on-aarch64-architecture/185741
-          # - BASE_IMAGE: python:3.10
-          #   DEVICE: cuda
-          #   TAG_SUFFIX:
-          #   OPENCV_INSTALL: opencv-python-headless pycocotools matplotlib onnxruntime onnx
-          #   PYTORCH_INSTALL: torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
-          #   platform: linux/amd64
-
-          # PyTorch Docker container do not support arm64
-          # - BASE_IMAGE: pytorch/pytorch:2.1.2-cuda12.1-cudnn8-runtime
-          #   DEVICE: cuda
-          #   TAG_SUFFIX: pytorch
-          #   OPENCV_INSTALL: pip
-          #   PYTORCH_INSTALL: pip
-          #   platform: linux/amd64
-
-          # NGC Docker Image is too big for github action
-          # - BASE_IMAGE: nvcr.io/nvidia/pytorch:23.12-py3
-          #   DEVICE: cuda
-          #   # TAG_SUFFIX: ngc
-          #   OPENCV_INSTALL: pip
-          #   PYTORCH_INSTALL: pip
-          #   platform: linux/amd64,linux/arm64
-  
-
-    # steps to perform in job
     steps:
       # Fix github action 'No space left on device'
       - name: Free Disk Space (Ubuntu)
@@ -117,6 +88,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./docker/segment-anything/cuda/Dockerfile
           build-args: |
             BASE_IMAGE=${{ matrix.BASE_IMAGE }}
             MODEL_CHECKPOINT=${{ matrix.MODEL }}
