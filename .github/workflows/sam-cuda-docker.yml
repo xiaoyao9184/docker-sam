@@ -27,19 +27,19 @@ jobs:
             MODEL_TYPE: vit_l
           - MODEL: sam_vit_b_01ec64
             MODEL_TYPE: vit_b
+          # no arm64 wheels on https://download.pytorch.org
           - BASE_IMAGE: nvidia/cuda:12.1.0-base-ubuntu20.04
             DEVICE: cuda
             TAG_SUFFIX:
             OPENCV_INSTALL: opencv-python-headless pycocotools matplotlib onnxruntime onnx
             PYTORCH_INSTALL: torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
-            platform: linux/amd64,linux/arm64
-
-          # - BASE_IMAGE: 12.1.0-cudnn8-runtime-ubuntu20.04
+            platform: linux/amd64
+          # - BASE_IMAGE: nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu20.04
           #   DEVICE: cuda
           #   TAG_SUFFIX:
           #   OPENCV_INSTALL: opencv-python-headless pycocotools matplotlib onnxruntime onnx
           #   PYTORCH_INSTALL: torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
-          #   platform: linux/amd64,linux/arm64
+          #   platform: linux/amd64
 
     steps:
       # Fix github action 'No space left on device'

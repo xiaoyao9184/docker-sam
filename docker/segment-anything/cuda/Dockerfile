@@ -3,7 +3,7 @@ ARG MODEL_CHECKPOINT
 ARG MODEL_TYPE
 ARG DEVICE_TYPE=cuda
 ARG PY_VERSION=3.10
-# replace opencv-pytho with opencv-python-headless
+# replace opencv-python with opencv-python-headless
 ARG OPENCV_INSTALL=opencv-python-headless pycocotools matplotlib onnxruntime onnx
 # default use cuda
 ARG PYTORCH_INSTALL=torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu121
